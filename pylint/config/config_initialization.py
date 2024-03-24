@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import sys
+import glob
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,8 @@ from pylint import reporters
 from pylint.config.config_file_parser import _ConfigurationFileParser
 from pylint.config.exceptions import _UnrecognizedOptionError
 from pylint.utils import utils
+
+recursive_enabled = '--recursive=y' in args_list
 
 if TYPE_CHECKING:
     from pylint.lint import PyLinter
@@ -117,6 +120,17 @@ def _config_initialization(
 
     # Link the base Namespace object on the current directory
     linter._directory_namespaces[Path(".").resolve()] = (linter.config, {})
+
+    # Expand glob patterns in parsed_args_list if recursive_enabled
+    if recursive_enabled:
+        expanded_args_list = []
+        for arg in parsed_args_list:
+            if "*" in arg or "?" in arg:
+                # Expand the glob pattern to actual file paths
+                expanded_args_list.extend(glob.glob(arg, recursive=True))
+            else:
+                expanded_args_list.append(arg)
+        parsed_args_list = expanded_args_list
 
     # parsed_args_list should now only be a list of files/directories to lint.
     # All other options have been removed from the list.
