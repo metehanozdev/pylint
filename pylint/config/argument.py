@@ -16,6 +16,7 @@ import re
 from collections.abc import Callable
 from glob import glob
 from typing import Any, Literal, Pattern, Sequence, Tuple, Union
+import warnings
 
 from pylint import interfaces
 from pylint import utils as pylint_utils
@@ -111,11 +112,49 @@ def _regex_transformer(value: str) -> Pattern[str]:
         raise argparse.ArgumentTypeError(msg) from e
 
 
+from typing import List
+
 def _regexp_csv_transfomer(value: str) -> Sequence[Pattern[str]]:
     """Transforms a comma separated list of regular expressions."""
+
+    def find_inner_commas(expression: str) -> List[str]:
+        nested_splits: List[str | List[str]] = []
+        open_curly = False
+        current_chunk: List[str] = []
+
+        for char in expression:
+            if char == '{':
+                open_curly = True
+            elif char == '}':
+                open_curly = False
+            
+            if char == ',' and not open_curly:
+                nested_splits.append(''.join(current_chunk))
+                current_chunk = []
+            else:
+                current_chunk.append(char)
+
+        if current_chunk:  # Add the last gathered chunk if it's not empty
+            nested_splits.append(''.join(current_chunk))
+
+        return nested_splits
+
+    warnings.warn(
+        "The handling of the 'bad-names-rgxs' option will change in a future pylint release. "
+        "If you are relying on a list of regular expressions separated by commas, you should "
+        "start using a single regular expression that captures your intent, possibly using '|' "
+        "to separate alternatives. For more information and updates, refer to pylint documentation.",
+        DeprecationWarning
+    )
     patterns: list[Pattern[str]] = []
-    for pattern in _csv_transformer(value):
-        patterns.append(_regex_transformer(pattern))
+    for pattern_str in find_inner_commas(value):
+        try:
+            pattern = re.compile(pattern_str)
+            patterns.append(pattern)
+        except re.error as err:
+            raise argparse.ArgumentTypeError(
+                f"Invalid regular expression '{pattern_str}': {err.msg}"
+            ) from err
     return patterns
 
 
