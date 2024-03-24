@@ -11,6 +11,7 @@ import copy
 import os
 import sys
 from collections import defaultdict
+from collections import defaultdict
 from collections.abc import ItemsView, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, Union
@@ -473,6 +474,7 @@ class ImportsChecker(DeprecatedMixin, BaseChecker):
         )
         self._allow_any_import_level = set(self.linter.config.allow_any_import_level)
         self._allow_reexport_package = self.linter.config.allow_reexport_from_package
+        self.map_data = defaultdict(list)
 
     def _import_graph_without_ignored_edges(self) -> defaultdict[str, set[str]]:
         filtered_graph = copy.deepcopy(self.import_graph)
@@ -507,6 +509,7 @@ class ImportsChecker(DeprecatedMixin, BaseChecker):
         self._check_reimport(node)
         self._check_import_as_rename(node)
         self._check_toplevel(node)
+        self.map_data[node.names[0][0]].append(node.root().name)
 
         names = [name for name, _ in node.names]
         if len(names) >= 2:
@@ -532,6 +535,7 @@ class ImportsChecker(DeprecatedMixin, BaseChecker):
         basename = node.modname
         imported_module = self._get_imported_module(node, basename)
         absolute_name = get_import_name(node, basename)
+        self.map_data[basename].append(node.root().name)
 
         self._check_import_as_rename(node)
         self._check_misplaced_future(node)
@@ -872,6 +876,7 @@ class ImportsChecker(DeprecatedMixin, BaseChecker):
         module_file = node.root().file
         context_name = node.root().name
         base = os.path.splitext(os.path.basename(module_file))[0]
+        self.map_data[importedmodname].append(context_name)
 
         try:
             importedmodname = astroid.modutils.get_module_part(
@@ -1057,6 +1062,11 @@ class ImportsChecker(DeprecatedMixin, BaseChecker):
             and imported_module is not None
             and "__all__" in imported_module.locals
         )
+
+    @classmethod
+    def reduce_map_data(cls, linter, data):
+        # Placeholder for reduce_map_data implementation
+        pass
 
     def _check_toplevel(self, node: ImportNode) -> None:
         """Check whether the import is made outside the module toplevel."""

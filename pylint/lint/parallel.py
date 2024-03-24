@@ -85,6 +85,7 @@ def _worker_check_single_file(
     msgs = _worker_linter.reporter.messages
     assert isinstance(_worker_linter.reporter, reporters.CollectingReporter)
     _worker_linter.reporter.reset()
+    _worker_linter._map_reduce_data = mapreduce_data
     return (
         id(multiprocessing.current_process()),
         _worker_linter.current_name,
@@ -93,7 +94,7 @@ def _worker_check_single_file(
         msgs,
         _worker_linter.stats,
         _worker_linter.msg_status,
-        mapreduce_data,
+        _worker_linter._map_reduce_data,
     )
 
 
@@ -112,13 +113,30 @@ def _merge_mapreduce_data(
             for checker_name, data in run_data.items():
                 collated_map_reduce_data[checker_name].extend(data)
 
+    # Sort the collated map/reduce data to maintain the correct order
+    collated_map_reduce_data = {
+        checker_name: sorted(data_list, key=lambda x: x['some_sort_key'])
+        for checker_name, data_list in collated_map_reduce_data.items()
+    }
+
     # Send the data to checkers that support/require consolidated data
     original_checkers = linter.get_checkers()
     for checker in original_checkers:
         if checker.name in collated_map_reduce_data:
             # Assume that if the check has returned map/reduce data that it has the
             # reducer function
-            checker.reduce_map_data(linter, collated_map_reduce_data[checker.name])
+            if hasattr(checker, 'reduce_map_data'):
+                try:
+                    checker.reduce_map_data(collated_map_reduce_data[checker.name])
+                except AttributeError as e:
+                    # Handle the absence of an implemented 'reduce_map_data' method.
+                    linter.reporter.handle_message(
+                        Message(
+                            msg_id='E9999',
+                            args=(checker.name, str(e)),
+                            symbol='checker-map-reduce-not-implemented',
+                        )
+                    )
 
 
 def check_parallel(
