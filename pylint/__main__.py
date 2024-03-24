@@ -4,7 +4,12 @@
 # For details: https://github.com/pylint-dev/pylint/blob/main/LICENSE
 # Copyright (c) https://github.com/pylint-dev/pylint/blob/main/CONTRIBUTORS.txt
 
+import sys
 import pylint
+
+if '--disable=all' in sys.argv:
+    print("No checks were run. Exiting early since all checks are disabled.")
+    sys.exit(0)
 
 pylint.modify_sys_path()
 pylint.run_pylint()

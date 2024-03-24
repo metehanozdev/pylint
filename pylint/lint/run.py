@@ -121,9 +121,12 @@ group are mutually exclusive.",
         reporter: BaseReporter | None = None,
         exit: bool = True,  # pylint: disable=redefined-builtin
     ) -> None:
-        # Immediately exit if user asks for version
-        if "--version" in args:
-            print(full_version)
+        # Immediately exit if user asks for version or all checks are disabled
+        if "--version" in args or '--disable=all' in args:
+            if '--disable=all' in args:
+                print("No checks were run. Exiting early since all checks are disabled.")
+            else:
+                print(full_version)
             sys.exit(0)
 
         self._rcfile: str | None = None
