@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Sequence
 from typing import NoReturn
+import glob
 
 from pylint import constants
 from pylint.config.arguments_manager import _ArgumentsManager
@@ -268,6 +269,14 @@ class Run(_ArgumentsManager, _ArgumentsProvider):
         # Parse options
         insert_default_options()
         args = self._parse_command_line_configuration(args)
+        expanded_source_roots = []
+        for source_root in self.config.source_roots:
+            # If the source root contains a glob pattern, expand it.
+            if '*' in source_root:
+                expanded_source_roots.extend(glob.glob(source_root))
+            else:
+                expanded_source_roots.append(source_root)
+        self.config.source_roots = expanded_source_roots
 
         if self.config.output_format not in DIRECTLY_SUPPORTED_FORMATS:
             check_graphviz_availability()
