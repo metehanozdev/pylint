@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import re
 import warnings
 from dataclasses import asdict, fields
 from typing import TYPE_CHECKING, Dict, NamedTuple, Optional, TextIO, cast, overload
@@ -165,6 +166,7 @@ class TextReporter(BaseReporter):
 
     def on_set_current_module(self, module: str, filepath: str | None) -> None:
         """Set the format template to be used and check for unrecognized arguments."""
+        custom_braces_pattern = re.compile(r'{{\s*"(?P<varname>\w+)":\s*"{(?P<msgid>\w+)}"\s*}}')
         template = str(self.linter.config.msg_template or self._template)
 
         # Return early if the template is the same as the previous one
@@ -173,6 +175,8 @@ class TextReporter(BaseReporter):
 
         # Set template to the currently selected template
         self._template = template
+        # Replace custom braces with standard braces for correct variable substitution
+        template = custom_braces_pattern.sub(r'{\g<msgid>}', template)
 
         # Check to see if all parameters in the template are attributes of the Message
         arguments = re.findall(r"\{(.+?)(:.*)?\}", template)
