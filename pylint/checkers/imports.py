@@ -907,6 +907,7 @@ class ImportsChecker(DeprecatedMixin, BaseChecker):
 
     def _check_import_as_rename(self, node: ImportNode) -> None:
         names = node.names
+        in_init_file = os.path.basename(node.root().file) == '__init__.py'
         for name in names:
             if not all(name):
                 return
@@ -915,6 +916,10 @@ class ImportsChecker(DeprecatedMixin, BaseChecker):
             import_name = splitted_packages[-1]
             aliased_name = name[1]
             if import_name != aliased_name:
+                continue
+
+            # Skip the useless-import-alias check for __init__.py files
+            if in_init_file and aliased_name == import_name and node.scope().name == '__init__':
                 continue
 
             if len(splitted_packages) == 1:
