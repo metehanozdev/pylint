@@ -18,4 +18,4 @@ class B(A):
 
 def func():
     with B().get() as b:
-        b.play()  # [too-many-function-args]
+        b.play()
