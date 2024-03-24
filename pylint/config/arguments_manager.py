@@ -207,17 +207,46 @@ class _ArgumentsManager:
         self.config = self._arg_parser.parse_args([], self.config)
 
     def _parse_configuration_file(self, arguments: list[str]) -> None:
-        """Parse the arguments found in a configuration file into the namespace."""
+        """Parse the arguments found in a configuration file into the namespace.
+
+        Arguments with 'all' should be processed first
+        if the 'enable' and 'disable' options are encountered.
+        """
+        # Create a queue to store options, with special handling for 'enable=all' or 'disable=all'
+        prioritized_enable_disable_all = []
+        other_options = []
+        
+        # Split up the arguments into priorities
+        for arg in arguments:
+            if arg.startswith(("--enable=", "--disable=")) and "all" in arg:
+                prioritized_enable_disable_all.append(arg)
+            else:
+                other_options.append(arg)
+        
+        # Process the high priority 'all' options first
+        for arg in prioritized_enable_disable_all:
+            try:
+                self.config = self._arg_parser.parse_known_args(
+                    [arg],
+                    self.config,
+                )[0]
+            except SystemExit:
+                sys.exit(32)
+            except _UnrecognizedOptionError as e:
+                print(f"Unrecognized option {e.option}.", file=sys.stderr)
+
+        # Then process the rest of the arguments
         try:
             self.config, parsed_args = self._arg_parser.parse_known_args(
-                arguments, self.config
+                other_options, self.config
             )
         except SystemExit:
             sys.exit(32)
-        unrecognized_options: list[str] = []
-        for opt in parsed_args:
-            if opt.startswith("--"):
-                unrecognized_options.append(opt[2:])
+
+        unrecognized_options = [
+            opt[2:] for opt in parsed_args if opt.startswith("--")
+        ]
+        
         if unrecognized_options:
             raise _UnrecognizedOptionError(options=unrecognized_options)
 
